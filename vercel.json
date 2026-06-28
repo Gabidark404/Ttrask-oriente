@@ -1,7 +1,6 @@
 {
   "version": 2,
   "buildCommand": "npm install",
-  "outputDirectory": "client",
   "routes": [
     { "src": "/api/(.*)", "dest": "/server/index.js" },
     { "src": "/api-docs", "dest": "/server/index.js" },
