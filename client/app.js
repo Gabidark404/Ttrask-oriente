@@ -18,14 +18,20 @@ let herramientaSeleccionadaCode = null;
 const loadedTabs = new Set();
 
 // ---------- INIT ----------
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
     checkAuth();
     setupNavigation();
     setupFilters();
     setupImport();
     setupModal();
     setupLogout();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
 // ---------- UTILITIES ----------
 function formatDate(iso) {
@@ -270,6 +276,9 @@ async function loadDashboard() {
         showToast('Error al cargar dashboard: ' + err.message, 'error');
     }
 
+    // Also load notifications (part of dashboard view)
+    loadNotifications();
+
     // Load recent history
     try {
         const reqData = await apiFetch('/requests?limit=10');
@@ -290,9 +299,6 @@ async function loadDashboard() {
     } catch (err) {
         console.error('History error:', err);
     }
-
-    // Also load notifications (part of dashboard view)
-    loadNotifications();
 }
 
 // ---------- NOTIFICATIONS ----------
