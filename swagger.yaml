@@ -1,0 +1,672 @@
+openapi: 3.0.3
+info:
+  title: TTRAKS ORIENTE API
+  version: 1.0.0
+  description: |
+    API para gestión y control de herramientas del Departamento de Servicio
+    de concesionario automotriz TTRAKS ORIENTE.
+  contact:
+    name: TTRAKS ORIENTE
+    email: soporte@ttraksoriente.com
+servers:
+  - url: http://localhost:3000/api
+    description: Desarrollo local
+  - url: https://api.ttraksoriente.com/api
+    description: Producción
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT de Supabase Auth (incluye role en app_metadata)
+
+  schemas:
+    Tool:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        item:
+          type: integer
+        code:
+          type: string
+          example: "HER-001"
+        codification:
+          type: string
+          example: "EST-01-A"
+        description:
+          type: string
+          example: "Llave Dinamométrica 1/2\" 40-200Nm"
+        brand:
+          type: string
+          example: "Proto"
+        quantity:
+          type: integer
+          example: 3
+        available:
+          type: integer
+          example: 2
+        status:
+          type: string
+          enum: [Disponible, Prestada, Reservada, "En mantenimiento", Extraviada, "Fuera de servicio"]
+          example: "Disponible"
+        location:
+          type: string
+          example: "Estante A1"
+        lastUpdate:
+          type: string
+          format: date-time
+      required: [code, description]
+
+    ToolList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tool'
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+            limit:
+              type: integer
+            offset:
+              type: integer
+
+    ToolCreate:
+      type: object
+      required: [code, description]
+      properties:
+        item:
+          type: integer
+        code:
+          type: string
+        codification:
+          type: string
+        description:
+          type: string
+        brand:
+          type: string
+        quantity:
+          type: integer
+          default: 0
+        available:
+          type: integer
+        status:
+          type: string
+          enum: [Disponible, Prestada, Reservada, "En mantenimiento", Extraviada, "Fuera de servicio"]
+          default: "Disponible"
+        location:
+          type: string
+
+    DashboardData:
+      type: object
+      properties:
+        total:
+          type: integer
+        disponible:
+          type: integer
+        prestada:
+          type: integer
+        mantenimiento:
+          type: integer
+        extraviada:
+          type: integer
+        pendientes:
+          type: integer
+
+    Request:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        toolId:
+          type: integer
+          format: int64
+        toolName:
+          type: string
+        user:
+          type: string
+        reason:
+          type: string
+        estimatedReturnDate:
+          type: string
+          format: date-time
+        requestDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [Pendiente, Aprobada, Rechazada]
+        tool:
+          type: object
+          properties:
+            id:
+              type: integer
+            code:
+              type: string
+            description:
+              type: string
+            available:
+              type: integer
+            status:
+              type: string
+
+    RequestCreate:
+      type: object
+      required: [code, reason]
+      properties:
+        code:
+          type: string
+          example: "HER-001"
+        reason:
+          type: string
+          example: "Diagnóstico motor Hyundai Tucson"
+        estimatedReturnDate:
+          type: string
+          format: date-time
+        user:
+          type: string
+          example: "Carlos Mendoza"
+
+    RequestUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [Pendiente, Aprobada, Rechazada]
+
+    RequestList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Request'
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+            limit:
+              type: integer
+            offset:
+              type: integer
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        message:
+          type: string
+        user:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ImportReport:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        report:
+          type: object
+          properties:
+            processed:
+              type: integer
+            added:
+              type: integer
+            updated:
+              type: integer
+            errors:
+              type: integer
+            errorDetails:
+              type: array
+              items:
+                type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Inventory
+    description: Gestión de catálogo de herramientas
+  - name: Requests
+    description: Solicitudes de préstamo de herramientas
+  - name: Notifications
+    description: Centro de notificaciones
+  - name: Upload
+    description: Importación masiva desde Excel
+
+paths:
+  /inventory:
+    get:
+      tags: [Inventory]
+      summary: Listar herramientas con filtros y paginación
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Disponible, Prestada, Reservada, "En mantenimiento", Extraviada, "Fuera de servicio"]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: brand
+          in: query
+          schema:
+            type: string
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: codification
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Lista de herramientas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Inventory]
+      summary: Crear nueva herramienta (Solo Supervisor)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCreate'
+      responses:
+        '201':
+          description: Herramienta creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '400':
+          description: Datos inválidos
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Código duplicado
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /inventory/dashboard:
+    get:
+      tags: [Inventory]
+      summary: Obtener datos para dashboard
+      responses:
+        '200':
+          description: Métricas del dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /inventory/code/{code}:
+    get:
+      tags: [Inventory]
+      summary: Obtener herramienta por código
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Herramienta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '404':
+          description: No encontrada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /inventory/{id}:
+    get:
+      tags: [Inventory]
+      summary: Obtener herramienta por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Herramienta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '404':
+          description: No encontrada
+
+    patch:
+      tags: [Inventory]
+      summary: Actualizar herramienta (Solo Supervisor)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCreate'
+      responses:
+        '200':
+          description: Herramienta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No encontrada
+
+    delete:
+      tags: [Inventory]
+      summary: Eliminar herramienta (Solo Supervisor)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Eliminada
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No encontrada
+
+  /inventory/{id}/status:
+    patch:
+      tags: [Inventory]
+      summary: Cambiar estado de herramienta (Solo Supervisor)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [Disponible, Prestada, Reservada, "En mantenimiento", Extraviada, "Fuera de servicio"]
+      responses:
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /requests:
+    get:
+      tags: [Requests]
+      summary: Listar solicitudes
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [Pendiente, Aprobada, Rechazada]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Lista de solicitudes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Requests]
+      summary: Crear solicitud de préstamo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestCreate'
+      responses:
+        '201':
+          description: Solicitud creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: integer
+                  request:
+                    $ref: '#/components/schemas/Request'
+        '400':
+          description: Herramienta no disponible o datos inválidos
+        '404':
+          description: Herramienta no encontrada
+
+  /requests/{id}:
+    get:
+      tags: [Requests]
+      summary: Obtener solicitud por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+
+    patch:
+      tags: [Requests]
+      summary: Aprobar o rechazar solicitud (Solo Supervisor)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestUpdate'
+      responses:
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  request:
+                    $ref: '#/components/schemas/Request'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No encontrada
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Obtener notificaciones
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Lista de notificaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  pagination:
+                    type: object
+
+    post:
+      tags: [Notifications]
+      summary: Crear notificación (Sistema)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                user:
+                  type: string
+      responses:
+        '201':
+          description: Notificación creada
+
+  /upload:
+    post:
+      tags: [Upload]
+      summary: Importar inventario desde Excel (Solo Supervisor)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                excel:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Reporte de importación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportReport'
+        '400':
+          description: Archivo no enviado o inválido
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  responses:
+    Unauthorized:
+      description: No autorizado - Token faltante o inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Prohibido - Rol insuficiente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServerError:
+      description: Error interno
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

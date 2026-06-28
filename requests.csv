@@ -1,0 +1,4 @@
+tool_id,tool_name,requested_by,reason,estimated_return,request_date,status
+1,"Llave Dinamométrica 1/2"" 40-200Nm","Carlos Mendoza (Mecánico B)","Diagnóstico de falla de motor en Hyundai Tucson","2026-06-07 17:00","2026-06-07 09:15","Aprobada"
+2,"Escáner Automotriz OBD2","Técnico de Guardia","Diagnóstico de sistema de frenos","2026-06-07 18:00","2026-06-07 12:30","Pendiente"
+3,"Pistola de Impacto Neumática 3/4""","María L. (Mecánica A)","Reparación de chasis trasero","2026-06-08 09:00","2026-06-07 14:10","Rechazada"

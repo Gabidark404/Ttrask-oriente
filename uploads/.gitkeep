@@ -1,0 +1,2 @@
+# Este archivo permite que la carpeta uploads/ sea trackeada en git (necesaria para el servidor)
+# Los archivos subidos (.xlsx) son ignorados via .gitignore
