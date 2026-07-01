@@ -56,9 +56,19 @@ function formatDateShort(iso) {
 // ---------- AUTH ----------
 function checkAuth() {
     const token = localStorage.getItem('supabase-token');
+    const path = window.location.pathname;
+
     if (!token) {
+        if (path !== '/login') {
+            window.location.replace('/login');
+            return;
+        }
         showLoginModal();
     } else {
+        if (path === '/login') {
+            window.location.replace('/');
+            return;
+        }
         hideLoginModal();
         const role = localStorage.getItem('supabase-role') || 'tecnico';
         const user = localStorage.getItem('supabase-user') || 'Usuario';
@@ -123,6 +133,10 @@ async function login() {
         applyRoleUI(role, userInput);
         loadedTabs.clear();
         loadDashboard();
+        
+        if (window.location.pathname === '/login') {
+            window.history.replaceState({}, '', '/');
+        }
 
     } catch (err) {
         errorEl.innerText = 'Error de conexión: ' + err.message;
