@@ -80,6 +80,7 @@ function showLoginModal() {
 
 function hideLoginModal() {
     document.getElementById('login-modal').classList.remove('open');
+    document.body.classList.remove('unauthenticated');
 }
 
 async function login() {
@@ -214,13 +215,11 @@ function switchTab(tabId) {
     const section = document.getElementById(`tab-${tabId}`);
     if (section) section.classList.add('active');
 
-    // Lazy load data for the tab
-    if (!loadedTabs.has(tabId)) {
-        if (tabId === 'dashboard')   loadDashboard();
-        if (tabId === 'catalogo')    loadCatalogo(0);
-        if (tabId === 'supervision') loadSupervision();
-        // 'importar' has no initial data to load
-    }
+    // Load data for the tab (always reload on every click for responsiveness)
+    if (tabId === 'dashboard')   { loadedTabs.delete('dashboard');   loadDashboard(); }
+    if (tabId === 'catalogo')    { loadedTabs.delete('catalogo');    loadCatalogo(0); }
+    if (tabId === 'supervision') { loadedTabs.delete('supervision'); loadSupervision(); }
+    // 'importar' has no initial data to load
 }
 
 // ---------- TOAST NOTIFICATIONS ----------
