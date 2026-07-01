@@ -1,64 +1,66 @@
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
+const express    = require('express');
+const cors       = require('cors');
+const helmet     = require('helmet');
+const morgan     = require('morgan');
 const compression = require('compression');
 const fileUpload = require('express-fileupload');
-const swaggerUi = require('swagger-ui-express');
-const YAML = require('yamljs');
-const path = require('path');
+const swaggerUi  = require('swagger-ui-express');
+const YAML       = require('yamljs');
+const path       = require('path');
+const cookieParser = require('cookie-parser');
 
-const { verifyJwt } = require('./middleware/auth');
-const inventoryRoutes = require('./routes/inventory');
-const requestRoutes = require('./routes/requests');
+const { verifyJwt, verifyPageCookie } = require('./middleware/auth');
+const inventoryRoutes    = require('./routes/inventory');
+const requestRoutes      = require('./routes/requests');
 const notificationRoutes = require('./routes/notifications');
-const uploadRoutes = require('./routes/upload');
+const uploadRoutes       = require('./routes/upload');
+const authRoutes         = require('./routes/auth');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Static client files
+// ── Static client files (CSS, JS, assets)
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
-// Middlewares globales
+// ── Global Middlewares
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
-      fontSrc: ["'self'", "fonts.gstatic.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
+      styleSrc:   ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
+      fontSrc:    ["'self'", "fonts.gstatic.com"],
+      scriptSrc:  ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
       connectSrc: ["'self'", "https://*.supabase.co"],
-      imgSrc: ["'self'", "data:"],
+      imgSrc:     ["'self'", "data:"],
     }
   },
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
-}));
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*', credentials: true }));
+app.use(cookieParser());          // Needed to read req.cookies
 app.use(compression());
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(fileUpload({
   createParentPath: true,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
   abortOnLimit: true
 }));
 
-// Verificar JWT en todas las rutas /api
+// ── API Routes
+// Auth session (set/clear cookie) — public, no JWT needed
+app.use('/api/auth', authRoutes);
+
+// All other /api routes require JWT in Authorization header
 app.use('/api', verifyJwt);
-
-// Rutas API
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/requests', requestRoutes);
+app.use('/api/inventory',    inventoryRoutes);
+app.use('/api/requests',     requestRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/upload', uploadRoutes);
+app.use('/api/upload',       uploadRoutes);
 
-// Swagger Documentation
+// ── Swagger Documentation
 try {
   const swaggerDoc = YAML.load(path.join(__dirname, '..', 'swagger.yaml'));
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc, {
@@ -69,17 +71,12 @@ try {
   console.warn('Swagger.yaml no encontrado, docs deshabilitadas');
 }
 
-// Health check
+// ── Health check (public)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'TTRAKS ORIENTE API' });
 });
 
-// Root - serve index.html
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
-});
-
-// Error handling global
+// ── Global error handler
 app.use((err, req, res, next) => {
   console.error('Global error:', err.stack);
   res.status(err.status || 500).json({
@@ -88,9 +85,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404
-app.use((req, res) => {
-  res.status(404).json({ error: 'Ruta no encontrada' });
+// ══════════════════════════════════════════════
+//  SPA FALLBACK ROUTE
+// ══════════════════════════════════════════════
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Ruta no encontrada' });
+  }
+  res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
 });
 
 app.listen(PORT, () => {
