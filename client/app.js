@@ -59,15 +59,20 @@ function checkAuth() {
     const path = window.location.pathname;
 
     if (!token) {
-        if (path !== '/login') {
-            window.location.replace('/login');
-            return;
+        // Si no hay sesión, simplemente mostramos el modal sin cambiar la URL real
+        // Esto evita que las rutas relativas de CSS/JS se rompan
+        if (path === '/login' && window.history.replaceState) {
+            window.history.replaceState({}, '', '/');
         }
         showLoginModal();
     } else {
         if (path === '/login') {
-            window.location.replace('/');
-            return;
+            if (window.history.replaceState) {
+                window.history.replaceState({}, '', '/');
+            } else {
+                window.location.replace('/');
+                return;
+            }
         }
         hideLoginModal();
         const role = localStorage.getItem('supabase-role') || 'tecnico';
