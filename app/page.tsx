@@ -7,48 +7,40 @@ import Dashboard from "@/components/Dashboard";
 import Catalog from "@/components/Catalog";
 import Importar from "@/components/Importar";
 import Supervision from "@/components/Supervision";
+import Profile from "@/components/Profile";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState("dashboard");
-  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase?.auth.getSession() || { data: { session: null } };
-      setSession(data.session);
-      setCheckingAuth(false);
-    };
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
 
-    checkSession();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (!session) setCurrentTab("dashboard");
+    });
 
-    const { data: authListener } = supabase?.auth.onAuthStateChange(
-      (_event: string, session: any) => {
-        setSession(session);
-      }
-    ) || { data: { subscription: { unsubscribe: () => {} } } };
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
-    await supabase?.auth.signOut();
-    setSession(null);
+    await supabase.auth.signOut();
   };
 
-  if (checkingAuth) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-light)' }}>
-        <p style={{ color: 'var(--text-muted)' }}>Cargando...</p>
-      </div>
-    );
+  if (loading) {
+    return <div className="loading-screen">Cargando sistema...</div>;
   }
 
   if (!session) {
-    return <AuthModal onLogin={(s) => setSession(s)} />;
+    return <AuthModal onLogin={setSession} />;
   }
 
   const renderContent = () => {
@@ -63,6 +55,8 @@ export default function Home() {
         return userRole === "supervisor" ? <Importar session={session} /> : <Dashboard session={session} />;
       case "supervision":
         return userRole === "supervisor" ? <Supervision session={session} /> : <Dashboard session={session} />;
+      case "perfil":
+        return <Profile session={session} />;
       default:
         return <Dashboard session={session} />;
     }

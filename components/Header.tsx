@@ -54,6 +54,15 @@ export default function Header({ currentTab, setTab, onLogout, pendientesCount =
           </>
         )}
         
+        <div style={{flexGrow: 1}}></div>
+
+        <button 
+          className={`nav-btn ${currentTab === "perfil" ? "active" : ""}`} 
+          onClick={() => setTab("perfil")}
+        >
+          <span className="material-symbols-outlined">person</span> Mi Perfil
+        </button>
+
         <button className="nav-btn" onClick={onLogout} style={{marginLeft: '10px', backgroundColor: 'rgba(255,255,255,0.1)'}}>
           <span className="material-symbols-outlined">logout</span> Salir
         </button>
