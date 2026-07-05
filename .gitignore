@@ -26,3 +26,17 @@ coverage/
 
 # Build artifacts
 dist/
+.next/
+out/
+
+# Entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos de datos
+*.xlsx
+*.xls
+~$*.xlsx

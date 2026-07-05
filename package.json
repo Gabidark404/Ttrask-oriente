@@ -1,42 +1,29 @@
 {
   "name": "ttraks-oriente",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Gestión y control de herramientas para concesionario automotriz",
-  "main": "server/index.js",
+  "private": true,
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "nodemon server/index.js",
-    "test": "jest --detectOpenHandles --forceExit",
-    "test:watch": "jest --watch"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "author": "AMAIA",
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.44.4",
-    "compression": "^1.7.4",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "express-fileupload": "^1.5.0",
-    "helmet": "^7.1.0",
-    "jsdom": "^29.1.1",
-    "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0",
-    "swagger-ui-express": "^5.0.1",
-    "xlsx": "^0.18.5",
-    "yamljs": "^0.3.0"
+    "next": "14.2.5",
+    "react": "^18",
+    "react-dom": "^18",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "nodemon": "^3.1.4",
-    "supertest": "^7.0.0"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "collectCoverageFrom": [
-      "server/**/*.js",
-      "!server/index.js"
-    ]
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.5",
+    "typescript": "^5"
   }
 }
