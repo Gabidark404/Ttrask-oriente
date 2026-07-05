@@ -29,7 +29,7 @@ export default function Supervision({ session }: { session: any }) {
   const handleResolve = async (id: number, status: string) => {
     try {
       await fetch(`/api/requests/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,

@@ -7,6 +7,11 @@ export default function Catalog({ session }: { session: any }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
+  
+  // Estados para el modal de solicitud
+  const [selectedTool, setSelectedTool] = useState<any>(null);
+  const [reason, setReason] = useState("");
+  const [returnDate, setReturnDate] = useState("");
 
   const fetchTools = async () => {
     setLoading(true);
@@ -26,6 +31,38 @@ export default function Catalog({ session }: { session: any }) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRequestSubmit = async () => {
+    if (!reason) return alert("Debes indicar el motivo de uso");
+    
+    try {
+      const res = await fetch("/api/requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          code: selectedTool.code,
+          reason,
+          estimatedReturnDate: returnDate || null,
+        }),
+      });
+      
+      if (res.ok) {
+        alert("Solicitud enviada con éxito al supervisor");
+        setSelectedTool(null);
+        setReason("");
+        setReturnDate("");
+        fetchTools(); // Recargar inventario
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || "Error al solicitar la herramienta");
+      }
+    } catch (err) {
+      alert("Error de conexión");
     }
   };
 
@@ -111,6 +148,7 @@ export default function Catalog({ session }: { session: any }) {
                                 <button 
                                   className="btn btn-primary" 
                                   disabled={h.available === 0 || h.status !== 'Disponible'}
+                                  onClick={() => setSelectedTool(h)}
                                 >
                                     Solicitar
                                 </button>
@@ -122,6 +160,46 @@ export default function Catalog({ session }: { session: any }) {
             </table>
           )}
       </div>
+
+      {selectedTool && (
+        <div className={`modal-overlay ${selectedTool ? 'open' : ''}`}>
+            <div className="modal-box">
+                <div className="modal-header">
+                    <h3>Confirmar Solicitud de Salida</h3>
+                    <button className="close-btn" onClick={() => setSelectedTool(null)}>×</button>
+                </div>
+                <div className="modal-body">
+                    <div className="tool-summary-badge">
+                        <div className="tool-title">{selectedTool.description}</div>
+                        <div className="tool-meta">Código: {selectedTool.code.startsWith('__NO_CODE__') ? 'S/C' : selectedTool.code} | Marca: {selectedTool.brand || '-'}</div>
+                    </div>
+                    
+                    <div className="form-group">
+                        <label>Motivo de Uso / Orden de Reparación</label>
+                        <textarea 
+                          placeholder="Ej. Cambio de bujías vehículo Corolla placa XXX..."
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                        ></textarea>
+                    </div>
+                    
+                    <div className="form-group">
+                        <label>Fecha Estimada de Retorno</label>
+                        <input 
+                          type="date" 
+                          value={returnDate}
+                          onChange={(e) => setReturnDate(e.target.value)}
+                        />
+                    </div>
+                    
+                    <div className="modal-actions">
+                        <button className="btn btn-secondary" onClick={() => setSelectedTool(null)}>Cancelar</button>
+                        <button className="btn btn-primary" onClick={handleRequestSubmit}>Enviar Solicitud</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }

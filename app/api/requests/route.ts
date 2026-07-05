@@ -97,6 +97,16 @@ export async function POST(req: NextRequest) {
       .single();
     if (reqErr) throw reqErr;
 
+    // Actualizar herramienta a Reservada y restar disponible
+    await auth.supabase
+      .from("tools")
+      .update({
+        available: Math.max(0, tool.available - 1),
+        status: "Reservada",
+        last_update: new Date().toISOString(),
+      })
+      .eq("id", tool.id);
+
     await auth.supabase.from("notifications").insert([
       {
         message: `Nueva solicitud: ${tool.description} por ${newRequest.requested_by}`,

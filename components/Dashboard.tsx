@@ -5,16 +5,31 @@ import { useEffect, useState } from "react";
 export default function Dashboard({ session }: { session: any }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [recentRequests, setRecentRequests] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const res = await fetch("/api/inventory/dashboard", {
-          headers: { Authorization: `Bearer ${session?.access_token}` },
-        });
+        const headers = { Authorization: `Bearer ${session?.access_token}` };
+        const res = await fetch("/api/inventory/dashboard", { headers });
         if (res.ok) {
           const json = await res.json();
           setData(json);
+        }
+        
+        // Cargar notificaciones
+        const notifRes = await fetch("/api/notifications?limit=5", { headers });
+        if (notifRes.ok) {
+          const nJson = await notifRes.json();
+          setNotifications(nJson.data || []);
+        }
+
+        // Cargar historial
+        const reqRes = await fetch("/api/requests?limit=5", { headers });
+        if (reqRes.ok) {
+          const rJson = await reqRes.json();
+          setRecentRequests(rJson.data || []);
         }
       } catch (err) {
         console.error(err);
@@ -86,10 +101,21 @@ export default function Dashboard({ session }: { session: any }) {
                 <h2>Centro de Notificaciones</h2>
             </div>
             <div className="panel-body list-flow">
-                {/* Aqui irán las notificaciones */}
-                <div className="notification-item" style={{textAlign: 'center', color: 'var(--text-muted)', border: 'none'}}>
-                    <p>Las notificaciones se cargarán aquí.</p>
-                </div>
+                {notifications.length === 0 ? (
+                  <div className="notification-item" style={{textAlign: 'center', color: 'var(--text-muted)', border: 'none'}}>
+                      <p>No hay notificaciones recientes.</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div className="notification-item" key={n.id}>
+                        <p>{n.message}</p>
+                        <div className="notification-meta">
+                            <span>Por: {n.created_by}</span>
+                            <span>{new Date(n.created_at).toLocaleString()}</span>
+                        </div>
+                    </div>
+                  ))
+                )}
             </div>
         </div>
 
@@ -109,9 +135,27 @@ export default function Dashboard({ session }: { session: any }) {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td colSpan={4} style={{textAlign: 'center', color: 'var(--text-muted)'}}>No hay movimientos recientes.</td>
-                        </tr>
+                        {recentRequests.length === 0 ? (
+                          <tr>
+                              <td colSpan={4} style={{textAlign: 'center', color: 'var(--text-muted)'}}>No hay movimientos recientes.</td>
+                          </tr>
+                        ) : (
+                          recentRequests.map((r) => (
+                            <tr key={r.id}>
+                                <td>{r.toolName}</td>
+                                <td>{r.user}</td>
+                                <td>{new Date(r.requestDate).toLocaleDateString()}</td>
+                                <td>
+                                  <span style={{
+                                    color: r.status === 'Aprobada' ? '#10B981' : r.status === 'Rechazada' ? '#EF4444' : '#F59E0B',
+                                    fontWeight: 'bold'
+                                  }}>
+                                    {r.status}
+                                  </span>
+                                </td>
+                            </tr>
+                          ))
+                        )}
                     </tbody>
                 </table>
             </div>
