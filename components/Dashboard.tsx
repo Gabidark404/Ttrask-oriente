@@ -25,33 +25,58 @@ export default function Dashboard({ session }: { session: any }) {
     if (session) fetchDashboard();
   }, [session]);
 
+  const userRole = session?.user?.app_metadata?.role || "tecnico";
+
   return (
     <div className="tab-section active">
       <div className="metrics-grid">
-        <div className="metric-card total">
-            <h3>Total Herramientas</h3>
-            <p>{data?.total || 0}</p>
-        </div>
-        <div className="metric-card disponible">
-            <h3>Disponibles</h3>
-            <p>{data?.disponible || 0}</p>
-        </div>
-        <div className="metric-card prestada">
-            <h3>Prestadas</h3>
-            <p>{data?.prestada || 0}</p>
-        </div>
-        <div className="metric-card mantenimiento">
-            <h3>En Mantenimiento</h3>
-            <p>{data?.mantenimiento || 0}</p>
-        </div>
-        <div className="metric-card extraviada">
-            <h3>Extraviadas</h3>
-            <p>{data?.extraviada || 0}</p>
-        </div>
-        <div className="metric-card pendientes-alerta">
-            <h3>Sol. Pendientes</h3>
-            <p>{data?.pendientes || 0}</p>
-        </div>
+        {userRole === "supervisor" ? (
+          <>
+            <div className="metric-card total">
+                <h3>Total Herramientas</h3>
+                <p>{data?.total || 0}</p>
+            </div>
+            <div className="metric-card disponible">
+                <h3>Disponibles</h3>
+                <p>{data?.disponible || 0}</p>
+            </div>
+            <div className="metric-card prestada">
+                <h3>Prestadas</h3>
+                <p>{data?.prestada || 0}</p>
+            </div>
+            <div className="metric-card mantenimiento">
+                <h3>En Mantenimiento</h3>
+                <p>{data?.mantenimiento || 0}</p>
+            </div>
+            <div className="metric-card extraviada">
+                <h3>Extraviadas</h3>
+                <p>{data?.extraviada || 0}</p>
+            </div>
+            <div className="metric-card pendientes-alerta">
+                <h3>Sol. Pendientes</h3>
+                <p>{data?.pendientes || 0}</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="metric-card total">
+                <h3>Mis Préstamos Activos</h3>
+                <p>{data?.misPrestamos || 0}</p>
+            </div>
+            <div className="metric-card pendientes-alerta">
+                <h3>Mis Solicitudes Pendientes</h3>
+                <p>{data?.misPendientes || 0}</p>
+            </div>
+            <div className="metric-card extraviada">
+                <h3>Solicitudes Rechazadas</h3>
+                <p>{data?.misRechazadas || 0}</p>
+            </div>
+            <div className="metric-card disponible">
+                <h3>Total Histórico (Aprobadas)</h3>
+                <p>{data?.misHistorico || 0}</p>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="dashboard-panels">

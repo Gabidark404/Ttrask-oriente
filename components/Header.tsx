@@ -5,9 +5,12 @@ interface HeaderProps {
   setTab: (tab: string) => void;
   onLogout: () => void;
   pendientesCount?: number;
+  session?: any;
 }
 
-export default function Header({ currentTab, setTab, onLogout, pendientesCount = 0 }: HeaderProps) {
+export default function Header({ currentTab, setTab, onLogout, pendientesCount = 0, session }: HeaderProps) {
+  const userRole = session?.user?.app_metadata?.role || "tecnico";
+
   return (
     <header className="main-header">
       <div className="logo-area">
@@ -32,19 +35,25 @@ export default function Header({ currentTab, setTab, onLogout, pendientesCount =
         >
           <span className="material-symbols-outlined">construction</span> Catálogo
         </button>
-        <button 
-          className={`nav-btn ${currentTab === "importar" ? "active" : ""}`} 
-          onClick={() => setTab("importar")}
-        >
-          <span className="material-symbols-outlined">upload_file</span> Importar Excel
-        </button>
-        <button 
-          className={`nav-btn ${currentTab === "supervision" ? "active" : ""}`} 
-          onClick={() => setTab("supervision")}
-        >
-          <span className="material-symbols-outlined">verified_user</span> Supervisión 
-          <span className="badge">{pendientesCount}</span>
-        </button>
+        
+        {userRole === "supervisor" && (
+          <>
+            <button 
+              className={`nav-btn ${currentTab === "importar" ? "active" : ""}`} 
+              onClick={() => setTab("importar")}
+            >
+              <span className="material-symbols-outlined">upload_file</span> Importar Excel
+            </button>
+            <button 
+              className={`nav-btn ${currentTab === "supervision" ? "active" : ""}`} 
+              onClick={() => setTab("supervision")}
+            >
+              <span className="material-symbols-outlined">verified_user</span> Supervisión 
+              <span className="badge">{pendientesCount}</span>
+            </button>
+          </>
+        )}
+        
         <button className="nav-btn" onClick={onLogout} style={{marginLeft: '10px', backgroundColor: 'rgba(255,255,255,0.1)'}}>
           <span className="material-symbols-outlined">logout</span> Salir
         </button>

@@ -52,15 +52,17 @@ export default function Home() {
   }
 
   const renderContent = () => {
+    const userRole = session?.user?.app_metadata?.role || "tecnico";
+
     switch (currentTab) {
       case "dashboard":
         return <Dashboard session={session} />;
       case "catalogo":
         return <Catalog session={session} />;
       case "importar":
-        return <Importar session={session} />;
+        return userRole === "supervisor" ? <Importar session={session} /> : <Dashboard session={session} />;
       case "supervision":
-        return <Supervision session={session} />;
+        return userRole === "supervisor" ? <Supervision session={session} /> : <Dashboard session={session} />;
       default:
         return <Dashboard session={session} />;
     }
@@ -72,6 +74,7 @@ export default function Home() {
         currentTab={currentTab}
         setTab={setCurrentTab}
         onLogout={handleLogout}
+        session={session}
       />
       <main className="main-content">
         {renderContent()}
