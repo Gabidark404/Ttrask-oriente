@@ -16,23 +16,25 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState("dashboard");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase?.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase?.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (!session) setCurrentTab("dashboard");
-    });
+    }) || { data: null };
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (authListener?.subscription) {
+        authListener.subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await supabase?.auth.signOut();
   };
 
   if (loading) {

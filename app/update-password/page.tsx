@@ -15,7 +15,7 @@ export default function UpdatePasswordPage() {
 
   useEffect(() => {
     // Supabase maneja los tokens en el hash de la URL automáticamente y establece una sesión
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase?.auth.onAuthStateChange(async (event, session) => {
       if (event == "PASSWORD_RECOVERY") {
         console.log("Recuperación de contraseña en proceso...");
       }
@@ -38,6 +38,12 @@ export default function UpdatePasswordPage() {
     }
 
     setLoading(true);
+
+    if (!supabase) {
+      setError("Supabase no está configurado.");
+      setLoading(false);
+      return;
+    }
 
     const { error: updateError } = await supabase.auth.updateUser({
       password: password
