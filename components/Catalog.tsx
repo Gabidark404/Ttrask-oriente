@@ -7,11 +7,22 @@ export default function Catalog({ session }: { session: any }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
-  
-  // Estados para el modal de solicitud
+  const [concesionarioFilter, setConcesionarioFilter] = useState("");
+  const [concesionarios, setConcesionarios] = useState<any[]>([]);
+
+  // Solicitud modal
   const [selectedTool, setSelectedTool] = useState<any>(null);
   const [reason, setReason] = useState("");
   const [returnDate, setReturnDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [lastResult, setLastResult] = useState<{ isQueued: boolean; queuePosition: number } | null>(null);
+
+  // Tool detail modal
+  const [detailTool, setDetailTool] = useState<any>(null);
+  const [detailHistory, setDetailHistory] = useState<any[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const headers = { Authorization: `Bearer ${session?.access_token}` };
 
   const fetchTools = async () => {
     setLoading(true);
@@ -19,185 +30,336 @@ export default function Catalog({ session }: { session: any }) {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
       if (statusFilter && statusFilter !== "Todos") params.append("status", statusFilter);
+      if (concesionarioFilter) params.append("concesionario", concesionarioFilter);
 
-      const res = await fetch(`/api/inventory?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
+      const res = await fetch(`/api/inventory?${params.toString()}`, { headers });
       if (res.ok) {
         const json = await res.json();
         setTools(json.data || []);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  const fetchConcesionarios = async () => {
+    try {
+      const res = await fetch("/api/concesionarios", { headers });
+      if (res.ok) {
+        const json = await res.json();
+        setConcesionarios(json.data || []);
+      }
+    } catch {}
+  };
+
+  const openDetail = async (tool: any) => {
+    setDetailTool(tool);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/inventory/${tool.id}`, { headers });
+      if (res.ok) {
+        const json = await res.json();
+        setDetailTool(json);
+        setDetailHistory(json.history || []);
+      }
+    } catch {}
+    setDetailLoading(false);
   };
 
   const handleRequestSubmit = async () => {
     if (!reason) return alert("Debes indicar el motivo de uso");
-    
+    setSubmitting(true);
     try {
       const res = await fetch("/api/requests", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-        },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
           code: selectedTool.code,
           reason,
           estimatedReturnDate: returnDate || null,
         }),
       });
-      
       if (res.ok) {
-        alert("Solicitud enviada con éxito al supervisor");
+        const json = await res.json();
+        setLastResult({ isQueued: json.isQueued, queuePosition: json.queuePosition });
         setSelectedTool(null);
         setReason("");
         setReturnDate("");
-        fetchTools(); // Recargar inventario
+        fetchTools();
       } else {
         const errorData = await res.json();
         alert(errorData.error || "Error al solicitar la herramienta");
       }
-    } catch (err) {
-      alert("Error de conexión");
-    }
+    } catch { alert("Error de conexión"); }
+    setSubmitting(false);
   };
 
   useEffect(() => {
-    if (session) fetchTools();
-  }, [session, search, statusFilter]);
+    if (session) {
+      fetchConcesionarios();
+      fetchTools();
+    }
+  }, [session, search, statusFilter, concesionarioFilter]);
 
-  const getStatusBadge = (status: string) => {
-    const s = status.replace(" ", "");
-    return <span className={`status-dot status-${s}`}>🟢 {status}</span>;
+  const getStatusColor = (status: string) => ({
+    "Disponible": "#10B981", "Prestada": "#F59E0B", "Reservada": "#3B82F6",
+    "En mantenimiento": "#F97316", "Extraviada": "#EF4444", "Fuera de servicio": "#6B7280",
+  }[status] || "#ccc");
+
+  const canRequest = (tool: any) =>
+    !["Extraviada", "Fuera de servicio"].includes(tool.status);
+
+  const getRequestLabel = (tool: any) => {
+    if (tool.status === "Disponible" && tool.available > 0) return "Solicitar";
+    if (canRequest(tool)) return "Entrar en cola";
+    return "No disponible";
   };
 
   return (
     <div className="tab-section active">
+      {/* Resultado de solicitud */}
+      {lastResult && (
+        <div className={`alert-banner ${lastResult.isQueued ? "alert-info" : "alert-success"}`}>
+          <span className="material-symbols-outlined">
+            {lastResult.isQueued ? "queue" : "check_circle"}
+          </span>
+          {lastResult.isQueued
+            ? `Tu solicitud fue registrada en la cola de espera (posición #${lastResult.queuePosition}). Serás notificado cuando esté disponible.`
+            : "¡Solicitud enviada exitosamente! El supervisor la revisará pronto."}
+          <button onClick={() => setLastResult(null)} className="close-btn">×</button>
+        </div>
+      )}
+
       <div className="filter-bar">
-          <div className="search-box">
-              <span className="material-symbols-outlined">search</span>
-              <input 
-                type="text" 
-                placeholder="Buscar por Nombre, Marca, Código..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-          </div>
-          <div className="select-box">
-              <label>Estado:</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                  <option value="Todos">Todos los Estados</option>
-                  <option value="Disponible">Disponible</option>
-                  <option value="Prestada">Prestada</option>
-                  <option value="Reservada">Reservada</option>
-                  <option value="En mantenimiento">En mantenimiento</option>
-                  <option value="Extraviada">Extraviada</option>
-                  <option value="Fuera de servicio">Fuera de servicio</option>
-              </select>
-          </div>
+        <div className="search-box">
+          <span className="material-symbols-outlined">search</span>
+          <input
+            type="text"
+            placeholder="Buscar por nombre, marca, código..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="select-box">
+          <label>Estado:</label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="Todos">Todos los estados</option>
+            <option value="Disponible">Disponible</option>
+            <option value="Prestada">Prestada</option>
+            <option value="Reservada">Reservada</option>
+            <option value="En mantenimiento">En mantenimiento</option>
+            <option value="Extraviada">Extraviada</option>
+            <option value="Fuera de servicio">Fuera de servicio</option>
+          </select>
+        </div>
+        <div className="select-box">
+          <label>Concesionario:</label>
+          <select value={concesionarioFilter} onChange={(e) => setConcesionarioFilter(e.target.value)}>
+            <option value="">Todos</option>
+            {concesionarios.map((c) => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="table-container shadow-sm">
-          {loading ? (
-             <div style={{padding: '30px', textAlign: 'center'}}>Cargando inventario...</div>
-          ) : (
-            <table>
-                <thead>
-                    <tr>
-                        <th className="text-center">ITEM</th>
-                        <th>CÓDIGO / CODIF.</th>
-                        <th>DESCRIPCIÓN Y MEDIDA</th>
-                        <th>MARCA</th>
-                        <th className="text-center">CANT. DISP.</th>
-                        <th>ESTADO</th>
-                        <th className="text-center">ACCIÓN</th>
+        {loading ? (
+          <div style={{ padding: "30px", textAlign: "center" }}>
+            <span className="material-symbols-outlined spinning">sync</span> Cargando inventario...
+          </div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th className="text-center">ITEM</th>
+                <th>CÓDIGO / CODIF.</th>
+                <th>DESCRIPCIÓN</th>
+                <th>MARCA</th>
+                <th>CONCESIONARIO</th>
+                <th className="text-center">DISP.</th>
+                <th>ESTADO</th>
+                <th className="text-center">ACCIÓN</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tools.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center" style={{ color: "var(--text-muted)", padding: "30px" }}>
+                    No se encontraron herramientas con esos criterios.
+                  </td>
+                </tr>
+              ) : (
+                tools.map((h, index) => {
+                  const sc = getStatusColor(h.status);
+                  const canReq = canRequest(h);
+                  return (
+                    <tr key={h.id}>
+                      <td className="text-center" style={{ fontWeight: "bold", color: "var(--text-muted)" }}>{index + 1}</td>
+                      <td>
+                        <strong>{h.code.startsWith("__NO_CODE__") ? "S/C" : h.code}</strong><br />
+                        <span className="font-mono" style={{ fontSize: "11px", color: "var(--text-muted)" }}>{h.codification || "—"}</span>
+                      </td>
+                      <td>
+                        <button
+                          className="tool-name-link"
+                          onClick={() => openDetail(h)}
+                          title="Ver ficha completa"
+                        >
+                          {h.description}
+                        </button>
+                      </td>
+                      <td>{h.brand || "—"}</td>
+                      <td>
+                        {h.concesionario ? (
+                          <span className="conc-badge-sm">{h.concesionario}</span>
+                        ) : "—"}
+                      </td>
+                      <td className="text-center" style={{ fontSize: "13px", fontWeight: "bold" }}>
+                        {h.available} <span style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: "normal" }}>/ {h.quantity}</span>
+                      </td>
+                      <td>
+                        <span className="status-badge" style={{ background: sc + "22", color: sc, border: `1px solid ${sc}40` }}>
+                          {h.status}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <button
+                          className={`btn ${canReq ? (h.status === "Disponible" && h.available > 0 ? "btn-primary" : "btn-outline-queue") : "btn-secondary"}`}
+                          disabled={!canReq}
+                          onClick={() => canReq && setSelectedTool(h)}
+                          id={`btn-request-${h.id}`}
+                        >
+                          {h.status !== "Disponible" || h.available <= 0 ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>queue</span>
+                          ) : null}
+                          {getRequestLabel(h)}
+                        </button>
+                      </td>
                     </tr>
-                </thead>
-                <tbody>
-                    {tools.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center" style={{color: 'var(--text-muted)', padding: '30px'}}>
-                          No se encontraron herramientas en el almacén con esos criterios.
-                        </td>
-                      </tr>
-                    ) : (
-                      tools.map((h, index) => (
-                        <tr key={h.id}>
-                            <td className="text-center" style={{fontWeight: 'bold', color: 'var(--text-muted)'}}>
-                              {index + 1}
-                            </td>
-                            <td>
-                              <strong>{h.code.startsWith('__NO_CODE__') ? 'S/C' : h.code}</strong><br/>
-                              <span className="font-mono">{h.code.startsWith('__NO_CODE__') ? '-' : h.code}</span>
-                            </td>
-                            <td>
-                              <strong style={{color: 'var(--primary-dark)', fontSize: '13px'}}>
-                                {h.description}
-                              </strong>
-                            </td>
-                            <td>{h.brand || '-'}</td>
-                            <td className="text-center" style={{fontSize: '13px', fontWeight: 'bold'}}>
-                              {h.available} <span style={{color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal'}}>/ {h.quantity}</span>
-                            </td>
-                            <td>{getStatusBadge(h.status)}</td>
-                            <td className="text-center">
-                                <button 
-                                  className="btn btn-primary" 
-                                  disabled={h.available === 0 || h.status !== 'Disponible'}
-                                  onClick={() => setSelectedTool(h)}
-                                >
-                                    Solicitar
-                                </button>
-                            </td>
-                        </tr>
-                      ))
-                    )}
-                </tbody>
-            </table>
-          )}
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
+      {/* Modal Solicitud */}
       {selectedTool && (
-        <div className={`modal-overlay ${selectedTool ? 'open' : ''}`}>
-            <div className="modal-box">
-                <div className="modal-header">
-                    <h3>Confirmar Solicitud de Salida</h3>
-                    <button className="close-btn" onClick={() => setSelectedTool(null)}>×</button>
-                </div>
-                <div className="modal-body">
-                    <div className="tool-summary-badge">
-                        <div className="tool-title">{selectedTool.description}</div>
-                        <div className="tool-meta">Código: {selectedTool.code.startsWith('__NO_CODE__') ? 'S/C' : selectedTool.code} | Marca: {selectedTool.brand || '-'}</div>
-                    </div>
-                    
-                    <div className="form-group">
-                        <label>Motivo de Uso / Orden de Reparación</label>
-                        <textarea 
-                          placeholder="Ej. Cambio de bujías vehículo Corolla placa XXX..."
-                          value={reason}
-                          onChange={(e) => setReason(e.target.value)}
-                        ></textarea>
-                    </div>
-                    
-                    <div className="form-group">
-                        <label>Fecha Estimada de Retorno</label>
-                        <input 
-                          type="date" 
-                          value={returnDate}
-                          onChange={(e) => setReturnDate(e.target.value)}
-                        />
-                    </div>
-                    
-                    <div className="modal-actions">
-                        <button className="btn btn-secondary" onClick={() => setSelectedTool(null)}>Cancelar</button>
-                        <button className="btn btn-primary" onClick={handleRequestSubmit}>Enviar Solicitud</button>
-                    </div>
-                </div>
+        <div className="modal-overlay open">
+          <div className="modal-box">
+            <div className="modal-header">
+              <h3>
+                {selectedTool.status === "Disponible" && selectedTool.available > 0
+                  ? "Confirmar Solicitud"
+                  : "Entrar en Cola de Espera"}
+              </h3>
+              <button className="close-btn" onClick={() => setSelectedTool(null)}>×</button>
             </div>
+            <div className="modal-body">
+              {selectedTool.status !== "Disponible" || selectedTool.available <= 0 ? (
+                <div className="alert-banner alert-info" style={{ marginBottom: "16px" }}>
+                  <span className="material-symbols-outlined">info</span>
+                  Esta herramienta está <strong>{selectedTool.status}</strong>. Tu solicitud quedará en cola y serás notificado cuando esté disponible.
+                </div>
+              ) : null}
+              <div className="tool-summary-badge">
+                {selectedTool.imageUrl && (
+                  <img src={selectedTool.imageUrl} alt={selectedTool.description} className="tool-thumb" />
+                )}
+                <div>
+                  <div className="tool-title">{selectedTool.description}</div>
+                  <div className="tool-meta">
+                    Código: {selectedTool.code.startsWith("__NO_CODE__") ? "S/C" : selectedTool.code} · Marca: {selectedTool.brand || "—"}
+                    {selectedTool.concesionario && ` · ${selectedTool.concesionario}`}
+                  </div>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Motivo de Uso / Orden de Reparación *</label>
+                <textarea
+                  placeholder="Ej. Cambio de bujías vehículo Corolla placa XXX..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Fecha Estimada de Retorno</label>
+                <input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setSelectedTool(null)}>Cancelar</button>
+                <button className="btn btn-primary" onClick={handleRequestSubmit} disabled={submitting} id="btn-confirm-request">
+                  {submitting ? <span className="material-symbols-outlined spinning">sync</span> : <span className="material-symbols-outlined">send</span>}
+                  {submitting ? "Enviando..." : "Enviar Solicitud"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ficha de Herramienta */}
+      {detailTool && (
+        <div className="modal-overlay open">
+          <div className="modal-box modal-wide">
+            <div className="modal-header">
+              <h3>Ficha de Herramienta</h3>
+              <button className="close-btn" onClick={() => { setDetailTool(null); setDetailHistory([]); }}>×</button>
+            </div>
+            <div className="modal-body">
+              {detailLoading ? (
+                <div className="loading-state"><span className="material-symbols-outlined spinning">sync</span></div>
+              ) : (
+                <>
+                  <div className="tool-detail-grid">
+                    {detailTool.imageUrl && (
+                      <div className="tool-detail-img">
+                        <img src={detailTool.imageUrl} alt={detailTool.description} />
+                      </div>
+                    )}
+                    <div className="tool-detail-info">
+                      <h4>{detailTool.description}</h4>
+                      <div className="detail-fields">
+                        <div><span>Código</span><strong>{detailTool.code}</strong></div>
+                        <div><span>Codificación</span><strong>{detailTool.codification || "—"}</strong></div>
+                        <div><span>Marca</span><strong>{detailTool.brand || "—"}</strong></div>
+                        <div><span>Concesionario</span><strong>{detailTool.concesionario || "—"}</strong></div>
+                        <div><span>Área</span><strong>{detailTool.area || "—"}</strong></div>
+                        <div><span>Responsable</span><strong>{detailTool.responsible || "—"}</strong></div>
+                        <div><span>Ubicación</span><strong>{detailTool.location || "—"}</strong></div>
+                        <div><span>Disponibles</span><strong>{detailTool.available} / {detailTool.quantity}</strong></div>
+                        <div><span>Estado</span>
+                          <span className="status-badge" style={{ background: "#3B82F622", color: "#3B82F6" }}>{detailTool.status}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {detailHistory.length > 0 && (
+                    <div className="tool-history-mini">
+                      <h5><span className="material-symbols-outlined">history</span> Últimos movimientos</h5>
+                      <table>
+                        <thead>
+                          <tr><th>Acción</th><th>Por</th><th>Fecha</th><th>Notas</th></tr>
+                        </thead>
+                        <tbody>
+                          {detailHistory.slice(0, 8).map((h: any) => (
+                            <tr key={h.id}>
+                              <td><span style={{ color: h.action === "Prestamo" ? "#F59E0B" : h.action === "Devolucion" ? "#10B981" : "#64748B" }}>{h.action}</span></td>
+                              <td>{h.performed_by}</td>
+                              <td>{new Date(h.created_at).toLocaleDateString("es")}</td>
+                              <td style={{ fontSize: "12px", color: "var(--text-muted)" }}>{h.notes || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

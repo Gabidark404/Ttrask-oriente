@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import PushNotificationSetup from "@/components/PushNotificationSetup";
+
 
 export default function Profile({ session }: { session: any }) {
   const [password, setPassword] = useState("");
@@ -125,8 +127,15 @@ export default function Profile({ session }: { session: any }) {
               )}
             </button>
           </form>
+
+          {/* Notificaciones Push */}
+          <div style={{ marginTop: '30px' }}>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '15px', color: 'var(--text-color)' }}>Notificaciones al Celular</h3>
+            <PushNotificationSetup session={session} />
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

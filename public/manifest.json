@@ -1,0 +1,27 @@
+{
+  "name": "TTRAKS ORIENTE",
+  "short_name": "TTRAKS",
+  "description": "Sistema Integrado de Control de Herramientas para Concesionarios Automotrices",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B132B",
+  "theme_color": "#2563EB",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["business", "productivity"],
+  "lang": "es"
+}

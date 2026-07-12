@@ -71,6 +71,14 @@ export default function Dashboard({ session }: { session: any }) {
                 <h3>Sol. Pendientes</h3>
                 <p>{data?.pendientes || 0}</p>
             </div>
+            <div className="metric-card mantenimiento">
+                <h3>En Cola</h3>
+                <p>{data?.en_cola || 0}</p>
+            </div>
+            <div className="metric-card disponible">
+                <h3>Préstamos Activos</h3>
+                <p>{data?.prestamos_activos || 0}</p>
+            </div>
           </>
         ) : (
           <>

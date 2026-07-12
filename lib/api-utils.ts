@@ -3,20 +3,17 @@ import { getAuthenticatedClient } from "./supabase";
 
 /**
  * Extrae el cliente autenticado de Supabase y el token desde la request.
- * Si no hay token, retorna null.
  */
 export function getAuthSupabase(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-
   const token = authHeader.split(" ")[1];
   const supabase = getAuthenticatedClient(token);
   return { supabase, token };
 }
 
 /**
- * Valida si el usuario tiene uno de los roles requeridos decodificando el JWT (o dejando que RLS lo maneje).
- * En este caso, para no instalar jsonwebtoken, simplemente usamos getUser().
+ * Valida si el usuario tiene uno de los roles requeridos.
  */
 export async function authorizeRole(
   supabase: any,
@@ -27,6 +24,25 @@ export async function authorizeRole(
   if (!user || !user.app_metadata || !user.app_metadata.role) return false;
   return allowedRoles.includes(user.app_metadata.role);
 }
+
+/**
+ * Retorna info completa del usuario autenticado: id, email, role.
+ */
+export async function getUserInfo(supabase: any) {
+  if (!supabase) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  return {
+    user,
+    role: (user.app_metadata?.role || "tecnico") as string,
+    email: user.email || "unknown",
+    id: user.id as string,
+  };
+}
+
+export const MANAGER_ROLES = ['admin', 'supervisor', 'jefe_taller', 'almacenista'];
+export const WRITE_ROLES = ['admin', 'supervisor', 'almacenista'];
+export const REPORT_ROLES = ['admin', 'supervisor', 'jefe_taller', 'auditor'];
 
 export function handleApiError(err: any, customMessage: string = "Error interno") {
   console.error(customMessage, err);

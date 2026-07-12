@@ -8,12 +8,21 @@ import Catalog from "@/components/Catalog";
 import Importar from "@/components/Importar";
 import Supervision from "@/components/Supervision";
 import Profile from "@/components/Profile";
+import History from "@/components/History";
+import Concesionarios from "@/components/Concesionarios";
+import Reportes from "@/components/Reportes";
+import NotificationsPanel from "@/components/NotificationsPanel";
 import { supabase } from "@/lib/supabase";
+
+// Lazy import admin panel to avoid loading for non-admins
+import dynamic from "next/dynamic";
+const AdminPanel = dynamic(() => import("@/components/AdminPanel"), { ssr: false });
 
 export default function Home() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState("dashboard");
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     supabase?.auth.getSession().then(({ data: { session } }) => {
@@ -33,30 +42,55 @@ export default function Home() {
     };
   }, []);
 
+  // Register service worker
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
   const handleLogout = async () => {
     await supabase?.auth.signOut();
   };
 
   if (loading) {
-    return <div className="loading-screen">Cargando sistema...</div>;
+    return (
+      <div className="loading-screen">
+        <span className="material-symbols-outlined spinning" style={{ fontSize: "48px" }}>sync</span>
+        <p>Cargando sistema...</p>
+      </div>
+    );
   }
 
   if (!session) {
     return <AuthModal onLogin={setSession} />;
   }
 
-  const renderContent = () => {
-    const userRole = session?.user?.app_metadata?.role || "tecnico";
+  const userRole = session?.user?.app_metadata?.role || "tecnico";
+  const canManage = ["admin", "supervisor", "jefe_taller", "almacenista"].includes(userRole);
+  const canReport = ["admin", "supervisor", "jefe_taller", "auditor"].includes(userRole);
+  const canImport = ["admin", "supervisor", "almacenista"].includes(userRole);
 
+  const renderContent = () => {
     switch (currentTab) {
       case "dashboard":
         return <Dashboard session={session} />;
       case "catalogo":
         return <Catalog session={session} />;
-      case "importar":
-        return userRole === "supervisor" ? <Importar session={session} /> : <Dashboard session={session} />;
+      case "concesionarios":
+        return <Concesionarios session={session} />;
+      case "historial":
+        return <History session={session} />;
+      case "notificaciones":
+        return <NotificationsPanel session={session} onUnreadCountChange={setUnreadCount} />;
       case "supervision":
-        return userRole === "supervisor" ? <Supervision session={session} /> : <Dashboard session={session} />;
+        return canManage ? <Supervision session={session} /> : <Dashboard session={session} />;
+      case "reportes":
+        return canReport ? <Reportes session={session} /> : <Dashboard session={session} />;
+      case "importar":
+        return canImport ? <Importar session={session} /> : <Dashboard session={session} />;
+      case "admin":
+        return userRole === "admin" ? <AdminPanel session={session} /> : <Dashboard session={session} />;
       case "perfil":
         return <Profile session={session} />;
       default:
@@ -71,12 +105,13 @@ export default function Home() {
         setTab={setCurrentTab}
         onLogout={handleLogout}
         session={session}
+        unreadCount={unreadCount}
       />
       <main className="main-content">
         {renderContent()}
       </main>
       <footer className="main-footer">
-        TTRAKS ORIENTE ©️ 2026 · Sistema Integrado de Control de Herramientas para Concesionarios Automotrices.
+        TTRAKS ORIENTE ©️ 2026 · Sistema Integrado de Control de Herramientas · {userRole.toUpperCase()}
       </footer>
     </>
   );
