@@ -144,48 +144,9 @@ export default function AdminPanel({ session }: { session: any }) {
             )}
           </div>
         </div>
-
-        {/* Info sistema */}
-        <div className="admin-card">
-          <div className="admin-card-header">
-            <span className="material-symbols-outlined">info</span>
-            <h3>Información del Sistema</h3>
-          </div>
-          <div className="admin-info-list">
-            <div className="admin-info-row">
-              <span>Versión</span>
-              <strong>2.0.0</strong>
-            </div>
-            <div className="admin-info-row">
-              <span>Stack</span>
-              <strong>Next.js 14 + Supabase</strong>
-            </div>
-            <div className="admin-info-row">
-              <span>Módulos activos</span>
-              <strong>8 / 8</strong>
-            </div>
-            <div className="admin-info-row">
-              <span>Notificaciones Push</span>
-              <strong>{process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? "✅ Configurado" : "⚠️ Sin VAPID"}</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Pasos manuales */}
-        <div className="admin-card">
-          <div className="admin-card-header">
-            <span className="material-symbols-outlined">checklist</span>
-            <h3>Checklist de Configuración</h3>
-          </div>
-          <div className="admin-checklist">
-            <label><input type="checkbox" /> Ejecutar <code>supabase-schema-v2.sql</code> en Supabase</label>
-            <label><input type="checkbox" /> Crear buckets de imágenes (públicos)</label>
-            <label><input type="checkbox" /> Agregar <code>SUPABASE_SERVICE_ROLE_KEY</code></label>
-            <label><input type="checkbox" /> Configurar claves VAPID en servidor</label>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
+
 
