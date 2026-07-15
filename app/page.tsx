@@ -9,7 +9,6 @@ import Importar from "@/components/Importar";
 import Supervision from "@/components/Supervision";
 import Profile from "@/components/Profile";
 import History from "@/components/History";
-import Concesionarios from "@/components/Concesionarios";
 import Reportes from "@/components/Reportes";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import { supabase } from "@/lib/supabase";
@@ -74,7 +73,6 @@ export default function Home() {
     switch (currentTab) {
       case "dashboard":   return <Dashboard session={session} />;
       case "catalogo":    return <Catalog session={session} />;
-      case "concesionarios": return <Concesionarios session={session} />;
       case "historial":   return <History session={session} />;
       case "notificaciones": return <NotificationsPanel session={session} onUnreadCountChange={setUnreadCount} />;
       case "supervision": return canManage ? <Supervision session={session} /> : <Dashboard session={session} />;

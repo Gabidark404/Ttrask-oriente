@@ -9,6 +9,8 @@ export default function Catalog({ session }: { session: any }) {
   const [statusFilter, setStatusFilter] = useState("Todos");
   const [concesionarioFilter, setConcesionarioFilter] = useState("");
   const [concesionarios, setConcesionarios] = useState<any[]>([]);
+  const [stats, setStats] = useState<Record<string, any>>({});
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Solicitud modal
   const [selectedTool, setSelectedTool] = useState<any>(null);
@@ -47,8 +49,30 @@ export default function Catalog({ session }: { session: any }) {
       if (res.ok) {
         const json = await res.json();
         setConcesionarios(json.data || []);
+        fetchAllStats(json.data || []);
       }
     } catch {}
+  };
+
+  const fetchAllStats = async (concList: any[]) => {
+    const statsMap: Record<string, any> = {};
+    for (const c of concList) {
+      try {
+        const res = await fetch(`/api/inventory?concesionario=${encodeURIComponent(c.name)}&limit=999`, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          const toolsList = json.data || [];
+          statsMap[c.name] = {
+            total: toolsList.length,
+            disponible: toolsList.filter((t: any) => t.status === "Disponible").length,
+            prestada: toolsList.filter((t: any) => t.status === "Prestada").length,
+            mantenimiento: toolsList.filter((t: any) => t.status === "En mantenimiento").length,
+            extraviada: toolsList.filter((t: any) => t.status === "Extraviada").length,
+          };
+        }
+      } catch {}
+    }
+    setStats(statsMap);
   };
 
   const openDetail = async (tool: any) => {
@@ -63,6 +87,50 @@ export default function Catalog({ session }: { session: any }) {
       }
     } catch {}
     setDetailLoading(false);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !detailTool) return;
+    
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      // 1. Upload image
+      const uploadRes = await fetch("/api/upload/image", {
+        method: "POST",
+        headers: { Authorization: headers.Authorization },
+        body: formData
+      });
+      
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json();
+        throw new Error(errorData.error || "Error subiendo imagen");
+      }
+      
+      const { url } = await uploadRes.json();
+      
+      // 2. Update tool with new image URL
+      const updateRes = await fetch(`/api/inventory/${detailTool.id}`, {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: url })
+      });
+      
+      if (!updateRes.ok) throw new Error("Error guardando URL en herramienta");
+      
+      // Update local state
+      setDetailTool({ ...detailTool, imageUrl: url });
+      fetchTools(); // Refresh the list to show new image
+      alert("Imagen actualizada correctamente");
+      
+    } catch (err: any) {
+      alert(err.message || "Error al actualizar imagen");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleRequestSubmit = async () => {
@@ -129,6 +197,46 @@ export default function Catalog({ session }: { session: any }) {
         </div>
       )}
 
+      {/* Visual Concesionarios Grid */}
+      {concesionarios.length > 0 && (
+        <div className="concesionarios-grid" style={{ marginBottom: "24px" }}>
+          <div 
+            className={`conc-card ${concesionarioFilter === "" ? "active" : ""}`}
+            onClick={() => setConcesionarioFilter("")}
+            style={{ borderLeftColor: "var(--primary-dark)" }}
+          >
+            <div className="conc-color-bar" style={{ background: "var(--primary-dark)" }} />
+            <div className="conc-body">
+              <div className="conc-name">Inventario General</div>
+              <div className="conc-code">ALL</div>
+            </div>
+          </div>
+          {concesionarios.map(c => {
+            const s = stats[c.name] || { total: 0, disponible: 0, prestada: 0, extraviada: 0 };
+            return (
+              <div 
+                key={c.id} 
+                className={`conc-card ${concesionarioFilter === c.name ? "active" : ""}`}
+                onClick={() => setConcesionarioFilter(c.name)}
+                style={{ borderLeftColor: c.color }}
+              >
+                <div className="conc-color-bar" style={{ background: c.color }} />
+                <div className="conc-body">
+                  <div className="conc-name">{c.name}</div>
+                  <div className="conc-code">{c.code}</div>
+                  <div className="conc-mini-stats">
+                    <span className="mini-stat disponible">{s.total || 0} total</span>
+                    <span className="mini-stat">{s.disponible || 0} disp.</span>
+                    {s.prestada > 0 && <span className="mini-stat prestada">{s.prestada} prest.</span>}
+                    {s.extraviada > 0 && <span className="mini-stat extraviada">⚠ {s.extraviada}</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="filter-bar">
         <div className="search-box">
           <span className="material-symbols-outlined">search</span>
@@ -149,15 +257,6 @@ export default function Catalog({ session }: { session: any }) {
             <option value="En mantenimiento">En mantenimiento</option>
             <option value="Extraviada">Extraviada</option>
             <option value="Fuera de servicio">Fuera de servicio</option>
-          </select>
-        </div>
-        <div className="select-box">
-          <label>Concesionario:</label>
-          <select value={concesionarioFilter} onChange={(e) => setConcesionarioFilter(e.target.value)}>
-            <option value="">Todos</option>
-            {concesionarios.map((c) => (
-              <option key={c.id} value={c.name}>{c.name}</option>
-            ))}
           </select>
         </div>
       </div>
@@ -323,11 +422,38 @@ export default function Catalog({ session }: { session: any }) {
               ) : (
                 <>
                   <div className="tool-detail-grid">
-                    {detailTool.imageUrl && (
-                      <div className="tool-detail-img">
-                        <img src={detailTool.imageUrl} alt={detailTool.description} />
-                      </div>
-                    )}
+                    <div className="tool-detail-img-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {detailTool.imageUrl ? (
+                        <div className="tool-detail-img">
+                          <img src={detailTool.imageUrl} alt={detailTool.description} />
+                        </div>
+                      ) : (
+                        <div className="tool-thumb-placeholder" style={{ width: '100%', height: '200px', fontSize: '48px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '64px' }}>construction</span>
+                        </div>
+                      )}
+                      
+                      {/* Botón para subir foto (Solo admin/supervisor) */}
+                      {["admin", "supervisor", "jefe_taller", "almacenista"].includes(session?.user?.app_metadata?.role) && (
+                        <div className="upload-photo-btn-container">
+                          <input 
+                            type="file" 
+                            id="photo-upload" 
+                            accept="image/jpeg, image/png, image/webp" 
+                            style={{ display: "none" }} 
+                            onChange={handleImageUpload}
+                            disabled={uploadingImage}
+                          />
+                          <label htmlFor="photo-upload" className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'center', width: '100%', cursor: 'pointer' }}>
+                            {uploadingImage ? (
+                              <><span className="material-symbols-outlined spinning">sync</span> Subiendo...</>
+                            ) : (
+                              <><span className="material-symbols-outlined">add_a_photo</span> Subir Foto</>
+                            )}
+                          </label>
+                        </div>
+                      )}
+                    </div>
                     <div className="tool-detail-info">
                       <h4>{detailTool.description}</h4>
                       <div className="detail-fields">

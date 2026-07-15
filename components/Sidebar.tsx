@@ -32,7 +32,6 @@ export default function Sidebar({ currentTab, setTab, onLogout, unreadCount = 0,
   const navItems = [
     { id: "dashboard", icon: "analytics", label: "Dashboard", show: true },
     { id: "catalogo", icon: "construction", label: "Catálogo", show: true },
-    { id: "concesionarios", icon: "business", label: "Concesionarios", show: true },
     { id: "historial", icon: "history", label: "Historial", show: true },
     { id: "supervision", icon: "verified_user", label: "Gestión", show: canManage },
     { id: "reportes", icon: "bar_chart", label: "Reportes", show: canReport },

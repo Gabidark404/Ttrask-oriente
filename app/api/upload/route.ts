@@ -16,6 +16,8 @@ const COLUMN_MAP: Record<string, string> = {
   CODIFICACION: "codification",
   UBICACIÓN: "location",
   UBICACION: "location",
+  IMAGEN: "image_url",
+  FOTO: "image_url",
 };
 
 const STATUS_MAP: Record<string, string> = {
@@ -89,6 +91,7 @@ function buildToolRecord(mapped: any, index: number) {
     available: qty,
     status: mapped.status || "Disponible",
     location: mapped.location || "",
+    image_url: mapped.image_url || null,
     last_update: new Date().toISOString(),
   };
 }
