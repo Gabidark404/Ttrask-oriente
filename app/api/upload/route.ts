@@ -98,8 +98,8 @@ export async function POST(req: NextRequest) {
     const auth = getAuthSupabase(req);
     if (!auth?.supabase) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const isSupervisor = await authorizeRole(auth.supabase, ["supervisor"]);
-    if (!isSupervisor) return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+    const canImport = await authorizeRole(auth.supabase, ["admin", "supervisor", "almacenista"]);
+    if (!canImport) return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
 
     const formData = await req.formData();
     const file = formData.get("excel") as File | null;

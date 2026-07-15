@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AuthModal from "@/components/AuthModal";
-import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
 import Dashboard from "@/components/Dashboard";
 import Catalog from "@/components/Catalog";
 import Importar from "@/components/Importar";
@@ -14,7 +14,6 @@ import Reportes from "@/components/Reportes";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import { supabase } from "@/lib/supabase";
 
-// Lazy import admin panel to avoid loading for non-admins
 import dynamic from "next/dynamic";
 const AdminPanel = dynamic(() => import("@/components/AdminPanel"), { ssr: false });
 
@@ -23,6 +22,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState("dashboard");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     supabase?.auth.getSession().then(({ data: { session } }) => {
@@ -42,7 +42,6 @@ export default function Home() {
     };
   }, []);
 
-  // Register service worker
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -73,46 +72,46 @@ export default function Home() {
 
   const renderContent = () => {
     switch (currentTab) {
-      case "dashboard":
-        return <Dashboard session={session} />;
-      case "catalogo":
-        return <Catalog session={session} />;
-      case "concesionarios":
-        return <Concesionarios session={session} />;
-      case "historial":
-        return <History session={session} />;
-      case "notificaciones":
-        return <NotificationsPanel session={session} onUnreadCountChange={setUnreadCount} />;
-      case "supervision":
-        return canManage ? <Supervision session={session} /> : <Dashboard session={session} />;
-      case "reportes":
-        return canReport ? <Reportes session={session} /> : <Dashboard session={session} />;
-      case "importar":
-        return canImport ? <Importar session={session} /> : <Dashboard session={session} />;
-      case "admin":
-        return userRole === "admin" ? <AdminPanel session={session} /> : <Dashboard session={session} />;
-      case "perfil":
-        return <Profile session={session} />;
-      default:
-        return <Dashboard session={session} />;
+      case "dashboard":   return <Dashboard session={session} />;
+      case "catalogo":    return <Catalog session={session} />;
+      case "concesionarios": return <Concesionarios session={session} />;
+      case "historial":   return <History session={session} />;
+      case "notificaciones": return <NotificationsPanel session={session} onUnreadCountChange={setUnreadCount} />;
+      case "supervision": return canManage ? <Supervision session={session} /> : <Dashboard session={session} />;
+      case "reportes":    return canReport ? <Reportes session={session} /> : <Dashboard session={session} />;
+      case "importar":    return canImport ? <Importar session={session} /> : <Dashboard session={session} />;
+      case "admin":       return userRole === "admin" ? <AdminPanel session={session} /> : <Dashboard session={session} />;
+      case "perfil":      return <Profile session={session} />;
+      default:            return <Dashboard session={session} />;
     }
   };
 
   return (
-    <>
-      <Header
+    <div className={`app-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <Sidebar
         currentTab={currentTab}
         setTab={setCurrentTab}
         onLogout={handleLogout}
         session={session}
         unreadCount={unreadCount}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
+
+      {/* Floating notification FAB */}
+      <button
+        className={`notif-fab ${currentTab === "notificaciones" ? "active" : ""}`}
+        onClick={() => setCurrentTab("notificaciones")}
+        title="Notificaciones"
+        id="nav-notificaciones"
+      >
+        <span className="material-symbols-outlined">notifications</span>
+        {unreadCount > 0 && <span className="notif-fab-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+      </button>
+
       <main className="main-content">
         {renderContent()}
       </main>
-      <footer className="main-footer">
-        TTRAKS ORIENTE ©️ 2026 · Sistema Integrado de Control de Herramientas · {userRole.toUpperCase()}
-      </footer>
-    </>
+    </div>
   );
 }

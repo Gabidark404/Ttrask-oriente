@@ -16,11 +16,17 @@ export default function Concesionarios({ session }: ConcesionariosProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
 
-  // Add concesionario modal (admin only)
+  // Add concesionario modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCode, setNewCode] = useState("");
   const [newColor, setNewColor] = useState("#3B82F6");
+
+  // Request modal
+  const [selectedTool, setSelectedTool] = useState<any>(null);
+  const [reason, setReason] = useState("");
+  const [returnDate, setReturnDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const userRole = session?.user?.app_metadata?.role || "tecnico";
   const canManage = ["admin", "supervisor"].includes(userRole);
@@ -104,6 +110,40 @@ export default function Concesionarios({ session }: ConcesionariosProps) {
         alert(err.error || "Error al crear concesionario");
       }
     } catch { alert("Error de conexión"); }
+  };
+
+  const handleRequestSubmit = async () => {
+    if (!reason) return alert("Debes indicar el motivo de uso");
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/requests", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: selectedTool.code,
+          reason,
+          estimatedReturnDate: returnDate || null,
+        }),
+      });
+      if (res.ok) {
+        setSelectedTool(null);
+        setReason("");
+        setReturnDate("");
+        fetchTools(selected);
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || "Error al solicitar");
+      }
+    } catch { alert("Error de conexión"); }
+    setSubmitting(false);
+  };
+
+  const canRequest = (tool: any) => !["Extraviada", "Fuera de servicio"].includes(tool.status);
+
+  const getRequestLabel = (tool: any) => {
+    if (tool.status === "Disponible" && tool.available > 0) return "Solicitar";
+    if (canRequest(tool)) return "En cola";
+    return "No disp.";
   };
 
   const getStatusBadge = (status: string) => {
@@ -221,30 +261,51 @@ export default function Concesionarios({ session }: ConcesionariosProps) {
           <table>
             <thead>
               <tr>
+                <th className="text-center">FOTO</th>
                 <th>CÓDIGO</th>
                 <th>DESCRIPCIÓN</th>
                 <th>MARCA</th>
                 <th>ÁREA</th>
                 <th>RESPONSABLE</th>
                 <th>ESTADO</th>
+                <th className="text-center">ACCIÓN</th>
               </tr>
             </thead>
             <tbody>
               {tools.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>
                     No se encontraron herramientas en este concesionario.
                   </td>
                 </tr>
               ) : (
                 tools.map((t) => (
                   <tr key={t.id}>
+                    <td className="text-center">
+                      {t.imageUrl ? (
+                        <img src={t.imageUrl} alt={t.description} className="tool-thumb-cell" />
+                      ) : (
+                        <div className="tool-thumb-placeholder">
+                          <span className="material-symbols-outlined">construction</span>
+                        </div>
+                      )}
+                    </td>
                     <td><strong className="font-mono">{t.code.startsWith("__NO_CODE__") ? "S/C" : t.code}</strong></td>
                     <td><strong style={{ color: "var(--primary-dark)", fontSize: "13px" }}>{t.description}</strong></td>
                     <td>{t.brand || "—"}</td>
                     <td>{t.area || "—"}</td>
                     <td>{t.responsible || "—"}</td>
                     <td>{getStatusBadge(t.status)}</td>
+                    <td className="text-center">
+                      <button
+                        className={`btn ${canRequest(t) ? (t.status === "Disponible" && t.available > 0 ? "btn-primary" : "btn-outline-queue") : "btn-secondary"}`}
+                        disabled={!canRequest(t)}
+                        onClick={() => canRequest(t) && setSelectedTool(t)}
+                        style={{ fontSize: "12px", padding: "5px 10px" }}
+                      >
+                        {getRequestLabel(t)}
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -277,6 +338,47 @@ export default function Concesionarios({ session }: ConcesionariosProps) {
               <div className="modal-actions">
                 <button className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancelar</button>
                 <button className="btn btn-primary" onClick={handleAddConcesionario} id="btn-save-concesionario">Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request modal */}
+      {selectedTool && (
+        <div className="modal-overlay open">
+          <div className="modal-box">
+            <div className="modal-header">
+              <h3>{selectedTool.status === "Disponible" && selectedTool.available > 0 ? "Solicitar Herramienta" : "Entrar en Cola"}</h3>
+              <button className="close-btn" onClick={() => setSelectedTool(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              {(selectedTool.status !== "Disponible" || selectedTool.available <= 0) && (
+                <div className="alert-banner alert-info" style={{ marginBottom: "16px" }}>
+                  <span className="material-symbols-outlined">info</span>
+                  Esta herramienta está <strong>{selectedTool.status}</strong>. Tu solicitud quedará en cola.
+                </div>
+              )}
+              <div className="tool-summary-badge">
+                {selectedTool.imageUrl && <img src={selectedTool.imageUrl} alt={selectedTool.description} className="tool-thumb" />}
+                <div>
+                  <div className="tool-title">{selectedTool.description}</div>
+                  <div className="tool-meta">Código: {selectedTool.code.startsWith("__NO_CODE__") ? "S/C" : selectedTool.code} · Marca: {selectedTool.brand || "—"}</div>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Motivo de Uso *</label>
+                <textarea placeholder="Ej. Cambio de bujías..." value={reason} onChange={(e) => setReason(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label>Fecha Estimada de Retorno</label>
+                <input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setSelectedTool(null)}>Cancelar</button>
+                <button className="btn btn-primary" onClick={handleRequestSubmit} disabled={submitting}>
+                  {submitting ? "Enviando..." : "Enviar Solicitud"}
+                </button>
               </div>
             </div>
           </div>

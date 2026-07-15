@@ -171,6 +171,7 @@ export default function Catalog({ session }: { session: any }) {
           <table>
             <thead>
               <tr>
+                <th className="text-center">FOTO</th>
                 <th className="text-center">ITEM</th>
                 <th>CÓDIGO / CODIF.</th>
                 <th>DESCRIPCIÓN</th>
@@ -184,7 +185,7 @@ export default function Catalog({ session }: { session: any }) {
             <tbody>
               {tools.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center" style={{ color: "var(--text-muted)", padding: "30px" }}>
+                  <td colSpan={9} className="text-center" style={{ color: "var(--text-muted)", padding: "30px" }}>
                     No se encontraron herramientas con esos criterios.
                   </td>
                 </tr>
@@ -194,6 +195,15 @@ export default function Catalog({ session }: { session: any }) {
                   const canReq = canRequest(h);
                   return (
                     <tr key={h.id}>
+                      <td className="text-center">
+                        {h.imageUrl ? (
+                          <img src={h.imageUrl} alt={h.description} className="tool-thumb-cell" />
+                        ) : (
+                          <div className="tool-thumb-placeholder">
+                            <span className="material-symbols-outlined">construction</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="text-center" style={{ fontWeight: "bold", color: "var(--text-muted)" }}>{index + 1}</td>
                       <td>
                         <strong>{h.code.startsWith("__NO_CODE__") ? "S/C" : h.code}</strong><br />
