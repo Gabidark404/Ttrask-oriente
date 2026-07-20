@@ -4,19 +4,30 @@ import { useState, useEffect } from "react";
 
 export default function AdminPanel({ session }: { session: any }) {
   const [users, setUsers] = useState<any[]>([]);
+  const [concesionarios, setConcesionarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [selectedConc, setSelectedConc] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
-  const fetchUsers = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/users", {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error al obtener usuarios");
-      setUsers(json.data || []);
+      const headers = { Authorization: `Bearer ${session?.access_token}` };
+      
+      const [resUsers, resConc] = await Promise.all([
+        fetch("/api/admin/users", { headers }),
+        fetch("/api/concesionarios", { headers })
+      ]);
+
+      const jsonUsers = await resUsers.json();
+      const jsonConc = await resConc.json();
+
+      if (!resUsers.ok) throw new Error(jsonUsers.error || "Error al obtener usuarios");
+      
+      setUsers(jsonUsers.data || []);
+      setConcesionarios(jsonConc.data || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -25,7 +36,7 @@ export default function AdminPanel({ session }: { session: any }) {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, [session]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
@@ -60,6 +71,32 @@ export default function AdminPanel({ session }: { session: any }) {
       auditor: "auditor"
     };
     return roles[role] || "tecnico";
+  };
+
+  const handleDeleteCatalog = async () => {
+    if (!selectedConc) return alert("Selecciona un concesionario primero.");
+    if (!confirm(`¿Estás seguro de que quieres eliminar TODO el catálogo de ${selectedConc}? Esta acción no se puede deshacer.`)) return;
+
+    setDeleting(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/inventory?concesionario=${encodeURIComponent(selectedConc)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session?.access_token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(data.message);
+        setSelectedConc("");
+      } else {
+        throw new Error(data.error || "Error al eliminar el catálogo");
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -142,6 +179,55 @@ export default function AdminPanel({ session }: { session: any }) {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+
+        {/* Gestión de Catálogos */}
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <span className="material-symbols-outlined">delete_sweep</span>
+            <h3>Borrar Catálogo</h3>
+          </div>
+          <p>Elimina permanentemente todas las herramientas asignadas a un concesionario específico.</p>
+          
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>
+              Selecciona el Concesionario:
+            </label>
+            <select
+              value={selectedConc}
+              onChange={(e) => setSelectedConc(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                marginBottom: '16px'
+              }}
+            >
+              <option value="">-- Seleccionar --</option>
+              {concesionarios.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+            
+            <button 
+              className="btn"
+              onClick={handleDeleteCatalog}
+              disabled={deleting || !selectedConc || loading}
+              style={{ 
+                width: '100%', 
+                backgroundColor: (deleting || !selectedConc) ? '#FCA5A5' : '#EF4444', 
+                color: 'white',
+                display: 'flex',
+                justifyContent: 'center'
+              }}
+            >
+              <span className={`material-symbols-outlined ${deleting ? "spinning" : ""}`}>
+                {deleting ? "sync" : "warning"}
+              </span>
+              {deleting ? "Eliminando..." : "Eliminar Todo el Catálogo"}
+            </button>
           </div>
         </div>
       </div>

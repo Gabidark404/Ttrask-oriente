@@ -115,3 +115,27 @@ export async function POST(req: NextRequest) {
     return handleApiError(err, "Error al crear herramienta");
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = getAuthSupabase(req);
+    if (!auth?.supabase) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const isAdmin = await authorizeRole(auth.supabase, ["admin"]);
+    if (!isAdmin) return NextResponse.json({ error: "Solo el administrador puede eliminar catálogos" }, { status: 403 });
+
+    const { searchParams } = new URL(req.url);
+    const concesionario = searchParams.get("concesionario");
+    
+    if (!concesionario) {
+      return NextResponse.json({ error: "Debe especificar el concesionario" }, { status: 400 });
+    }
+
+    const { error } = await auth.supabase.from("tools").delete().eq("concesionario", concesionario);
+    if (error) throw error;
+
+    return NextResponse.json({ success: true, message: `Catálogo de ${concesionario} eliminado exitosamente` });
+  } catch (err) {
+    return handleApiError(err, "Error al eliminar catálogo");
+  }
+}
