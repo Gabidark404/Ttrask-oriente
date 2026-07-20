@@ -144,12 +144,14 @@ export async function POST(req: NextRequest) {
     const errorDetails: string[] = [];
 
     for (let i = 0; i < rows.length; i++) {
-      processed++;
       const mapped = mapRow(rows[i]);
-      if (!mapped.code && !mapped.item) {
-        // Probablemente sea una fila de pie de página (firmas, totales)
+      
+      // Auto-verificación estricta: debe tener un número de ITEM válido.
+      // Esto filtra filas de firmas, pies de página o celdas combinadas.
+      if (!mapped.item || isNaN(parseInt(mapped.item))) {
         continue;
       }
+      processed++;
 
       const validationErrors = validateRow(mapped, i + 1);
 
