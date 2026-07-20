@@ -913,6 +913,49 @@ tr:hover { background-color: var(--bg-light); }
   background: rgba(124,58,237,0.1); color: #5b21b6; border-radius: 6px;
   font-size: 11px; font-weight: 600;
 }
+
+/* ── Concesionario filter cards (unified catalog) ── */
+.conc-filter-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 2px solid var(--border-color);
+  background: white;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.conc-filter-card:hover {
+  border-color: var(--blue-accent);
+  box-shadow: 0 2px 8px rgba(37,99,235,0.12);
+  transform: translateY(-1px);
+}
+.conc-filter-card.active {
+  border-color: var(--blue-accent);
+  background: #EFF6FF;
+  box-shadow: 0 2px 10px rgba(37,99,235,0.15);
+}
+.conc-filter-card .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--blue-accent);
+}
+.conc-filter-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.conc-filter-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.conc-filter-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
 .queue-badge {
   display: inline-flex; padding: 2px 8px;
   background: rgba(59,130,246,0.15); color: #1d4ed8; border-radius: 999px;

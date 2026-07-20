@@ -16,8 +16,6 @@ const COLUMN_MAP: Record<string, string> = {
   CODIFICACION: "codification",
   UBICACIÓN: "location",
   UBICACION: "location",
-  IMAGEN: "image_url",
-  FOTO: "image_url",
 };
 
 const STATUS_MAP: Record<string, string> = {
@@ -76,7 +74,7 @@ function validateRow(mapped: any, index: number) {
   return errors;
 }
 
-function buildToolRecord(mapped: any, index: number) {
+function buildToolRecord(mapped: any, index: number, concesionario: string = "") {
   const qty = parseInt(mapped.quantity) || 1;
   // Si no tiene código, generamos uno interno único para que Supabase no dé error de UNIQUE
   const finalCode = mapped.code ? mapped.code.toString().trim() : `__NO_CODE__${index}_${Date.now()}`;
@@ -91,7 +89,7 @@ function buildToolRecord(mapped: any, index: number) {
     available: qty,
     status: mapped.status || "Disponible",
     location: mapped.location || "",
-    image_url: mapped.image_url || null,
+    concesionario: concesionario || "",
     last_update: new Date().toISOString(),
   };
 }
@@ -106,6 +104,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("excel") as File | null;
+    const concesionario = (formData.get("concesionario") as string) || "";
 
     if (!file) {
       return NextResponse.json({ error: 'No se envió archivo Excel (campo "excel")' }, { status: 400 });
@@ -141,7 +140,7 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      const toolRecord = buildToolRecord(mapped, i + 1);
+      const toolRecord = buildToolRecord(mapped, i + 1, concesionario);
 
       const { data: existing, error: findErr } = await auth.supabase
         .from("tools")
