@@ -10,6 +10,11 @@ export default function Catalog({ session }: { session: any }) {
   const [concesionarioFilter, setConcesionarioFilter] = useState("");
   const [concesionarios, setConcesionarios] = useState<any[]>([]);
   const [concStats, setConcStats] = useState<Record<string, number>>({});
+  
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 50;
 
   // Solicitud modal
   const [selectedTool, setSelectedTool] = useState<any>(null);
@@ -38,12 +43,15 @@ export default function Catalog({ session }: { session: any }) {
       if (search) params.append("search", search);
       if (statusFilter && statusFilter !== "Todos") params.append("status", statusFilter);
       if (concesionarioFilter) params.append("concesionario", concesionarioFilter);
-      params.append("limit", "200");
+      
+      params.append("limit", limit.toString());
+      params.append("offset", ((page - 1) * limit).toString());
 
       const res = await fetch(`/api/inventory?${params.toString()}`, { headers });
       if (res.ok) {
         const json = await res.json();
         setTools(json.data || []);
+        setTotalItems(json.pagination?.total || 0);
       }
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -178,8 +186,12 @@ export default function Catalog({ session }: { session: any }) {
   }, [session]);
 
   useEffect(() => {
-    if (session) fetchTools();
+    setPage(1); // Reset page on filter change
   }, [search, statusFilter, concesionarioFilter]);
+
+  useEffect(() => {
+    if (session) fetchTools();
+  }, [search, statusFilter, concesionarioFilter, page]);
 
   // ── Helpers ─────────────────────────────────────────────────────
   const getStatusColor = (status: string) => ({
@@ -420,6 +432,33 @@ export default function Catalog({ session }: { session: any }) {
           </table>
         )}
       </div>
+
+      {/* ── PAGINACIÓN ── */}
+      {!loading && totalItems > limit && (
+        <div className="pagination-bar">
+          <button 
+            className="btn btn-secondary" 
+            disabled={page === 1}
+            onClick={() => setPage(p => p - 1)}
+            style={{ padding: '8px 16px' }}
+          >
+            <span className="material-symbols-outlined">chevron_left</span> Anterior
+          </button>
+          
+          <div className="pagination-info">
+            Página <strong>{page}</strong> de {Math.ceil(totalItems / limit)} (Total: {totalItems})
+          </div>
+          
+          <button 
+            className="btn btn-secondary" 
+            disabled={page >= Math.ceil(totalItems / limit)}
+            onClick={() => setPage(p => p + 1)}
+            style={{ padding: '8px 16px' }}
+          >
+            Siguiente <span className="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
+      )}
 
       {/* ── MODAL SOLICITUD ── */}
       {selectedTool && (
