@@ -8,6 +8,7 @@ const COLUMN_MAP: Record<string, string> = {
   CANTIDAD: "quantity",
   "DESCRIPCIÓN Y MEDIDA": "description",
   "DESCRIPCION Y MEDIDA": "description",
+  "DESCRIPCION PIEZA": "description",
   MARCA: "brand",
   CÓDIGO: "code",
   CODIGO: "code",
@@ -16,6 +17,8 @@ const COLUMN_MAP: Record<string, string> = {
   CODIFICACION: "codification",
   UBICACIÓN: "location",
   UBICACION: "location",
+  "ENLACE DE IMAGEN": "image_url",
+  "ENLACE  DE IMAGEN ": "image_url",
 };
 
 const STATUS_MAP: Record<string, string> = {
@@ -70,7 +73,7 @@ function mapRow(row: any) {
 function validateRow(mapped: any, index: number) {
   const errors = [];
   // Eliminada la validación de código obligatorio para permitir herramientas sin código
-  if (!mapped.description) errors.push(`Fila ${index}: Falta descripción (DESCRIPCIÓN Y MEDIDA)`);
+  if (!mapped.description) errors.push(`Fila ${index}: Falta descripción`);
   return errors;
 }
 
@@ -89,6 +92,7 @@ function buildToolRecord(mapped: any, index: number, concesionario: string = "")
     available: qty,
     status: mapped.status || "Disponible",
     location: mapped.location || "",
+    image_url: mapped.image_url || "",
     concesionario: concesionario || "",
     last_update: new Date().toISOString(),
   };
@@ -114,11 +118,26 @@ export async function POST(req: NextRequest) {
     const workbook = XLSX.read(buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    // Start reading at row index 5 (which is the 6th row, where headers are)
-    const rows = XLSX.utils.sheet_to_json(worksheet, { range: 5, defval: "", raw: false });
+    
+    // Dynamic header row detection (scan first 20 rows)
+    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][];
+    let headerRowIndex = -1;
+    for (let i = 0; i < Math.min(20, rawRows.length); i++) {
+      const rowString = rawRows[i].join("").toUpperCase();
+      if (rowString.includes("ITEM") || rowString.includes("DESCRIPCION") || rowString.includes("CÓDIGO") || rowString.includes("CODIGO")) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1) {
+      return NextResponse.json({ error: "No se encontró la fila de encabezados en el archivo Excel" }, { status: 400 });
+    }
+
+    const rows = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: "", raw: false });
 
     if (rows.length === 0) {
-      return NextResponse.json({ error: "No se encontraron datos a partir de la fila 6" }, { status: 400 });
+      return NextResponse.json({ error: "No se encontraron datos a partir de la fila de encabezados" }, { status: 400 });
     }
 
     let processed = 0, added = 0, updated = 0, errors = 0;
