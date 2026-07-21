@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
 
       const { data: existing, error: findErr } = await auth.supabase
         .from("tools")
-        .select("id, available, quantity")
+        .select("id, available, quantity, image_url")
         .eq("code", toolRecord.code)
         .single();
 
@@ -184,6 +184,7 @@ export async function POST(req: NextRequest) {
           .from("tools")
           .update({
             ...toolRecord,
+            image_url: toolRecord.image_url || existing.image_url, // PRESERVE EXISTING PHOTO
             available: newAvailable,
             last_update: new Date().toISOString(),
           })
