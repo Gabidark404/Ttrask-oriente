@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AuthModal from "@/components/AuthModal";
 import Sidebar from "@/components/Sidebar";
 import Dashboard from "@/components/Dashboard";
@@ -22,6 +22,22 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState("dashboard");
   const [unreadCount, setUnreadCount] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const checkMobile = useCallback(() => {
+    const mobile = window.innerWidth < 768;
+    setIsMobile(mobile);
+    if (mobile) setSidebarCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, [checkMobile]);
 
   useEffect(() => {
     supabase?.auth.getSession().then(({ data: { session } }) => {
@@ -85,7 +101,15 @@ export default function Home() {
   };
 
   return (
-    <div className={`app-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <div className={`app-layout ${sidebarCollapsed && !isMobile ? "sidebar-collapsed" : ""}`}>
+      {/* Mobile backdrop */}
+      {isMobile && (
+        <div
+          className={`sidebar-backdrop ${mobileMenuOpen ? "visible" : ""}`}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       <Sidebar
         currentTab={currentTab}
         setTab={setCurrentTab}
@@ -94,7 +118,22 @@ export default function Home() {
         unreadCount={unreadCount}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isMobile={isMobile}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
+
+      {/* Mobile hamburger button */}
+      {isMobile && (
+        <button
+          className="mobile-hamburger"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          <span className="material-symbols-outlined">
+            {mobileMenuOpen ? "close" : "menu"}
+          </span>
+        </button>
+      )}
 
       {/* Floating notification FAB */}
       <button

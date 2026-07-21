@@ -27,9 +27,22 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Inline script to prevent flash of wrong theme
+  const themeScript = `
+    (function() {
+      try {
+        var t = localStorage.getItem('ttraks-theme');
+        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch(e) {}
+    })();
+  `;
+
   return (
     <html lang="es">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {/* Material Symbols */}
         <link
           rel="stylesheet"
