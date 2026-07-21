@@ -33,6 +33,9 @@ export default function Catalog({ session }: { session: any }) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const uploadingToolRef = useRef<any>(null);
 
+  // Expanded Image
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+
   const headers = { Authorization: `Bearer ${session?.access_token}` };
 
   // ── Fetch tools ──────────────────────────────────────────────────
@@ -531,7 +534,15 @@ export default function Catalog({ session }: { session: any }) {
                   <div className="tool-detail-grid">
                     {detailTool.imageUrl && (
                       <div className="tool-detail-img">
-                        <img src={detailTool.imageUrl} alt={detailTool.description} />
+                        <img 
+                          src={detailTool.imageUrl} 
+                          alt={detailTool.description} 
+                          onClick={() => setExpandedImage(detailTool.imageUrl)}
+                          style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                          title="Click para expandir"
+                        />
                       </div>
                     )}
                     <div className="tool-detail-info">
@@ -575,6 +586,30 @@ export default function Catalog({ session }: { session: any }) {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL IMAGEN EXPANDIDA ── */}
+      {expandedImage && (
+        <div 
+          className="modal-overlay open" 
+          onClick={() => setExpandedImage(null)}
+          style={{ zIndex: 9999, padding: '20px', cursor: 'zoom-out' }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <button 
+              className="icon-btn" 
+              onClick={() => setExpandedImage(null)}
+              style={{ position: 'absolute', top: '-40px', right: 0, color: 'white', background: 'rgba(0,0,0,0.5)', borderRadius: '50%' }}
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <img 
+              src={expandedImage} 
+              alt="Herramienta expandida" 
+              style={{ width: '100%', height: '100%', objectFit: 'contain', maxHeight: '90vh', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+            />
           </div>
         </div>
       )}
