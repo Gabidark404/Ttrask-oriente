@@ -139,10 +139,12 @@ export default function Catalog({ session }: { session: any }) {
     setUploadingPhotoId(tool.id);
     try {
       // 1. Upload to storage
+      const safeCode = (tool.code || "tool").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const ext = file.name.split(".").pop() || "jpg";
       const formData = new FormData();
       formData.append("file", file);
       formData.append("bucket", "tool-images");
-      formData.append("path", `tools/${tool.code}-${Date.now()}.${file.name.split(".").pop()}`);
+      formData.append("path", `tools/${safeCode}-${Date.now()}.${ext}`);
 
       const uploadRes = await fetch("/api/upload/image", {
         method: "POST",
@@ -150,13 +152,15 @@ export default function Catalog({ session }: { session: any }) {
         body: formData,
       });
 
-      if (!uploadRes.ok) {
-        alert("Error al subir la imagen");
+      const uploadJson = await uploadRes.json().catch(() => null);
+
+      if (!uploadRes.ok || !uploadJson?.url) {
+        alert(uploadJson?.error || uploadJson?.details || "Error al subir la imagen.");
         setUploadingPhotoId(null);
         return;
       }
 
-      const { url } = await uploadRes.json();
+      const url = uploadJson.url;
 
       // 2. Save URL to tool
       const patchRes = await fetch(`/api/inventory/${tool.id}`, {
@@ -165,13 +169,17 @@ export default function Catalog({ session }: { session: any }) {
         body: JSON.stringify({ imageUrl: url }),
       });
 
+      const patchJson = await patchRes.json().catch(() => null);
+
       if (patchRes.ok) {
         // Update locally without full reload
         setTools(prev => prev.map(t => t.id === tool.id ? { ...t, imageUrl: url } : t));
       } else {
-        alert("Error al guardar la URL de la imagen");
+        alert(patchJson?.error || patchJson?.details || "Error al guardar la URL de la imagen en la base de datos.");
       }
-    } catch { alert("Error de conexión al subir foto"); }
+    } catch (err: any) {
+      alert("Error de conexión al subir foto: " + (err?.message || "intente nuevamente"));
+    }
 
     setUploadingPhotoId(null);
     if (e.target) e.target.value = "";
